@@ -10,7 +10,7 @@ ARG SEVENZIP_VERSION=2407
 WORKDIR /app
 
 # Copy composer from official image
-COPY --from=composer-base --link /usr/bin/composer /usr/bin/composer
+COPY --from=composer-base /usr/bin/composer /usr/bin/composer
 
 # Install system dependencies
 RUN apt update \
