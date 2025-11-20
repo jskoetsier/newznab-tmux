@@ -109,7 +109,6 @@ class Predb extends Model
     public static function checkPre(bool|int|string $dateLimit = false): void
     {
         $consoleTools = new ConsoleTools;
-        $updated = 0;
 
         if (config('nntmux.echocli')) {
             (new ColorCLI)->header('Querying DB for release search names not matched with PreDB titles.');
@@ -125,27 +124,55 @@ class Predb extends Model
 
         $res = $query->get();
 
-        if ($res !== null) {
-            $total = \count($res);
+        if ($res !== null && $res->count() > 0) {
+            $total = $res->count();
             (new ColorCLI)->primary(number_format($total).' releases to match.');
 
-            foreach ($res as $row) {
-                Release::query()->where('id', $row['releases_id'])->update(['predb_id' => $row['predb_id']]);
+            // Batch update for better performance
+            $batchSize = 1000;
+            $batches = $res->chunk($batchSize);
+            $updated = 0;
 
-                if (config('nntmux.echocli')) {
-                    $consoleTools->overWritePrimary(
-                        'Matching up preDB titles with release searchnames: '.$consoleTools->percentString(++$updated, $total)
-                    );
+            foreach ($batches as $batch) {
+                // Build case statement for batch update
+                $cases = [];
+                $ids = [];
+
+                foreach ($batch as $row) {
+                    $cases[] = "WHEN {$row->releases_id} THEN {$row->predb_id}";
+                    $ids[] = $row->releases_id;
+                }
+
+                if (! empty($ids)) {
+                    $idsString = implode(',', $ids);
+                    $caseString = implode(' ', $cases);
+
+                    // Perform batch update using a single query
+                    \DB::update("
+                        UPDATE releases 
+                        SET predb_id = CASE id {$caseString} END
+                        WHERE id IN ({$idsString})
+                    ");
+
+                    $updated += count($ids);
+
+                    if (config('nntmux.echocli')) {
+                        $consoleTools->overWritePrimary(
+                            'Matching up preDB titles with release searchnames: '.$consoleTools->percentString($updated, $total)
+                        );
+                    }
                 }
             }
-            if (config('nntmux.echocli')) {
-                echo PHP_EOL;
-            }
 
             if (config('nntmux.echocli')) {
+                echo PHP_EOL;
                 (new ColorCLI)->header(
-                    'Matched '.number_format(($updated > 0) ? $updated : 0).' PreDB titles to release search names.'
+                    'Matched '.number_format($updated).' PreDB titles to release search names.'
                 );
+            }
+        } else {
+            if (config('nntmux.echocli')) {
+                (new ColorCLI)->primary('No releases found to match against PreDB.');
             }
         }
     }
