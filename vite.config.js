@@ -15,4 +15,29 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        manifest: true,
+        outDir: 'public/build',
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    vendor: ['vue', 'axios', 'lodash'],
+                    alpine: ['alpinejs'],
+                    icons: ['feather-icons', '@fortawesome/fontawesome-free'],
+                },
+            },
+        },
+        chunkSizeWarningLimit: 1000,
+        minify: 'esbuild',
+        cssCodeSplit: true,
+        sourcemap: false,
+    },
+    server: {
+        hmr: {
+            host: 'localhost',
+        },
+    },
+    optimizeDeps: {
+        include: ['vue', 'axios', 'lodash', 'alpinejs'],
+    },
 });

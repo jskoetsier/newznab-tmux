@@ -4,8 +4,11 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
+        "build:production": "NODE_ENV=production vite build --mode production",
+        "preview": "vite preview",
         "format": "prettier --write 'resources/**/*.{css,js,vue}'",
-        "package-update": "ncu -u -x pnotify,tinymce"
+        "package-update": "ncu -u -x pnotify,tinymce",
+        "optimize": "npm run build:production && npm run format"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.8",
