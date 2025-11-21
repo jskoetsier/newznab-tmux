@@ -63,13 +63,15 @@ BACKFILL_ARTICLES=20000
 
 mysql nntmux <<EOF
 -- Enable backfill ONLY for groups that have valid article data (last_record > 0)
-UPDATE usenet_groups 
+-- Cap backfill_target at 2 billion to prevent INT overflow
+UPDATE usenet_groups
 SET backfill = 1,
-    backfill_target = CASE 
-                        WHEN last_record > $BACKFILL_ARTICLES 
-                          THEN last_record - $BACKFILL_ARTICLES
-                        ELSE first_record
-                      END
+    backfill_target = LEAST(2000000000,
+                            CASE
+                              WHEN last_record > $BACKFILL_ARTICLES
+                                THEN last_record - $BACKFILL_ARTICLES
+                              ELSE first_record
+                            END)
 WHERE active = 1
 AND last_record > 0
 AND first_record > 0;
