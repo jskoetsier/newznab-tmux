@@ -22,10 +22,12 @@ echo ""
 
 # 2. Enable Postprocessing in database
 echo "Step 2: Enabling Postprocessing..."
-mysql nntmux -e "UPDATE settings SET value='1' WHERE name='post';"
+# post=3 enables BOTH Additional AND NFO postprocessing
+mysql nntmux -e "UPDATE settings SET value='3' WHERE name='post';"
 mysql nntmux -e "UPDATE settings SET value='1' WHERE name='post_amazon';"
 mysql nntmux -e "UPDATE settings SET value='1' WHERE name='post_non';"
 echo "✓ Postprocessing enabled in database (all types)"
+echo "  post=3 (Additional + NFO), post_amazon=1, post_non=1"
 echo ""
 
 # 3. Verify settings
