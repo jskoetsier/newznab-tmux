@@ -66,11 +66,11 @@ class ReprocessReleases extends Command
         // Get count before applying limit
         $totalCount = $query->count();
         $this->info('Total matching releases: ' . number_format($totalCount));
-        
+
         // Apply limit
         $query->limit($limit);
         $affectedCount = min($limit, $totalCount);
-        
+
         $this->info('Releases to reset: ' . number_format($affectedCount));
         $this->newLine();
 
@@ -99,7 +99,8 @@ class ReprocessReleases extends Command
         // Reset the flags
         $this->info('Resetting processing flags...');
         $progressBar = $this->output->createProgressBar($affectedCount);
-        
+
+        // Get IDs of releases to update (limit works on select)
         $resetQuery = Release::query();
         if ($unmatchedOnly) {
             $resetQuery->where('predb_id', 0);
@@ -107,13 +108,14 @@ class ReprocessReleases extends Command
         if ($categoryId) {
             $resetQuery->where('categories_id', $categoryId);
         }
-        $resetQuery->limit($limit);
-        
-        $updated = $resetQuery->update([
+        $releaseIds = $resetQuery->limit($limit)->pluck('id')->toArray();
+
+        // Update by IDs
+        $updated = Release::whereIn('id', $releaseIds)->update([
             'proc_nfo' => 0,
             'proc_files' => 0,
         ]);
-        
+
         $progressBar->finish();
         $this->newLine(2);
 
@@ -121,7 +123,7 @@ class ReprocessReleases extends Command
         $this->info('=== Reset Complete ===');
         $this->info('Releases updated: ' . number_format($updated));
         $this->newLine();
-        
+
         if ($updated > 0) {
             $this->info('✓ Processing flags reset successfully!');
             $this->newLine();
