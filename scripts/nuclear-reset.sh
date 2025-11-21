@@ -153,13 +153,13 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Reset groups to current article numbers (no backfill, start from now)
 mysql nntmux <<EOF
-UPDATE usenetgroups
+UPDATE usenet_groups 
 SET first_record = last_record,
     first_record_postdate = NOW(),
     last_updated = NOW();
 EOF
 
-GROUPS=$(mysql -N nntmux -e "SELECT COUNT(*) FROM usenetgroups WHERE active = 1")
+GROUPS=$(mysql -N nntmux -e "SELECT COUNT(*) FROM usenet_groups WHERE active = 1")
 echo "✓ Reset $GROUPS active groups to current article numbers"
 echo "  (Groups will start collecting NEW articles from now)"
 
