@@ -536,5 +536,5 @@ See [ROADMAP.md](ROADMAP.md) for planned features and improvements.
 ---
 
 <p align="center">
-    <sub>Version 2.0.0 | Last Updated: November 21, 2025</sub>
+    <sub>Version 2.1.0 | Last Updated: November 21, 2025</sub>
 </p>
