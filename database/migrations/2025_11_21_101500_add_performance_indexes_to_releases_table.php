@@ -21,72 +21,55 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('releases', function (Blueprint $table) {
-            // Add index for searchname (used in searches)
-            if (! $this->indexExists('releases', 'ix_releases_searchname')) {
-                $table->index('searchname', 'ix_releases_searchname');
-            }
+        // Add indexes to releases table for performance
+        $this->addIndexIfNotExists('releases', 'ix_releases_searchname', function (Blueprint $table) {
+            $table->index('searchname', 'ix_releases_searchname');
+        });
 
-            // Add composite index for category + postdate (used in category browsing)
-            if (! $this->indexExists('releases', 'ix_releases_categories_postdate')) {
-                $table->index(['categories_id', 'postdate'], 'ix_releases_categories_postdate');
-            }
+        $this->addIndexIfNotExists('releases', 'ix_releases_categories_postdate', function (Blueprint $table) {
+            $table->index(['categories_id', 'postdate'], 'ix_releases_categories_postdate');
+        });
 
-            // Add composite index for group + postdate (used in group browsing)
-            if (! $this->indexExists('releases', 'ix_releases_groups_postdate')) {
-                $table->index(['groups_id', 'postdate'], 'ix_releases_groups_postdate');
-            }
+        $this->addIndexIfNotExists('releases', 'ix_releases_groups_postdate', function (Blueprint $table) {
+            $table->index(['groups_id', 'postdate'], 'ix_releases_groups_postdate');
+        });
 
-            // Add index for adddate (used in recent releases queries)
-            if (! $this->indexExists('releases', 'ix_releases_adddate')) {
-                $table->index('adddate', 'ix_releases_adddate');
-            }
+        $this->addIndexIfNotExists('releases', 'ix_releases_adddate', function (Blueprint $table) {
+            $table->index('adddate', 'ix_releases_adddate');
+        });
 
-            // Add index for predb_id (used in PreDB matching)
-            if (! $this->indexExists('releases', 'ix_releases_predb_id')) {
-                $table->index('predb_id', 'ix_releases_predb_id');
-            }
+        $this->addIndexIfNotExists('releases', 'ix_releases_predb_id', function (Blueprint $table) {
+            $table->index('predb_id', 'ix_releases_predb_id');
+        });
 
-            // Add composite index for size + postdate (used in size filtering)
-            if (! $this->indexExists('releases', 'ix_releases_size_postdate')) {
-                $table->index(['size', 'postdate'], 'ix_releases_size_postdate');
-            }
+        $this->addIndexIfNotExists('releases', 'ix_releases_size_postdate', function (Blueprint $table) {
+            $table->index(['size', 'postdate'], 'ix_releases_size_postdate');
+        });
 
-            // Add index for grabs (used in popular releases)
-            if (! $this->indexExists('releases', 'ix_releases_grabs')) {
-                $table->index('grabs', 'ix_releases_grabs');
-            }
+        $this->addIndexIfNotExists('releases', 'ix_releases_grabs', function (Blueprint $table) {
+            $table->index('grabs', 'ix_releases_grabs');
         });
 
         // Add indexes to collections table for performance
-        Schema::table('collections', function (Blueprint $table) {
-            // Add composite index for group + date
-            if (! $this->indexExists('collections', 'ix_collections_groups_date')) {
-                $table->index(['groups_id', 'dateadded'], 'ix_collections_groups_date');
-            }
+        $this->addIndexIfNotExists('collections', 'ix_collections_groups_date', function (Blueprint $table) {
+            $table->index(['groups_id', 'dateadded'], 'ix_collections_groups_date');
+        });
 
-            // Add index for collectionhash (used in deduplication)
-            if (! $this->indexExists('collections', 'ix_collections_hash')) {
-                $table->index('collectionhash', 'ix_collections_hash');
-            }
+        $this->addIndexIfNotExists('collections', 'ix_collections_hash', function (Blueprint $table) {
+            $table->index('collectionhash', 'ix_collections_hash');
+        });
 
-            // Add index for releases_id (used in joining)
-            if (! $this->indexExists('collections', 'ix_collections_releases_id')) {
-                $table->index('releases_id', 'ix_collections_releases_id');
-            }
+        $this->addIndexIfNotExists('collections', 'ix_collections_releases_id', function (Blueprint $table) {
+            $table->index('releases_id', 'ix_collections_releases_id');
         });
 
         // Add indexes to binaries table for performance
-        Schema::table('binaries', function (Blueprint $table) {
-            // Add composite index for collection + filecheck
-            if (! $this->indexExists('binaries', 'ix_binaries_collections_filecheck')) {
-                $table->index(['collections_id', 'partcheck'], 'ix_binaries_collections_filecheck');
-            }
+        $this->addIndexIfNotExists('binaries', 'ix_binaries_collections_filecheck', function (Blueprint $table) {
+            $table->index(['collections_id', 'partcheck'], 'ix_binaries_collections_filecheck');
+        });
 
-            // Add index for binaryhash (used in deduplication)
-            if (! $this->indexExists('binaries', 'ix_binaries_hash')) {
-                $table->index('binaryhash', 'ix_binaries_hash');
-            }
+        $this->addIndexIfNotExists('binaries', 'ix_binaries_hash', function (Blueprint $table) {
+            $table->index('binaryhash', 'ix_binaries_hash');
         });
     }
 
@@ -120,6 +103,21 @@ return new class extends Migration
     }
 
     /**
+     * Add an index to a table if it doesn't already exist.
+     *
+     * @param  string  $tableName  The table name
+     * @param  string  $indexName  The index name
+     * @param  callable  $callback  The schema builder callback
+     * @return void
+     */
+    private function addIndexIfNotExists(string $tableName, string $indexName, callable $callback): void
+    {
+        if (! $this->indexExists($tableName, $indexName)) {
+            Schema::table($tableName, $callback);
+        }
+    }
+
+    /**
      * Check if an index exists on a table.
      *
      * @param  string  $table  The table name
@@ -128,10 +126,14 @@ return new class extends Migration
      */
     private function indexExists(string $table, string $index): bool
     {
-        $connection = Schema::getConnection();
-        $dbSchemaManager = $connection->getDoctrineSchemaManager();
-        $doctrineTable = $dbSchemaManager->listTableDetails($table);
+        $indexes = Schema::getIndexes($table);
 
-        return $doctrineTable->hasIndex($index);
+        foreach ($indexes as $indexInfo) {
+            if ($indexInfo['name'] === $index) {
+                return true;
+            }
+        }
+
+        return false;
     }
 };
