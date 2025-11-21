@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Fix .env Tool Paths
-# Automatically detects and updates paths for required tools in .env
+# Installs missing tools and updates paths in .env
 #
 
 set -e
@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/../.env"
 
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║          NNTmux - Fix .env Tool Paths                         ║"
+echo "║      NNTmux - Install Tools & Fix .env Paths                  ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -21,6 +21,104 @@ fi
 
 echo "📁 Using .env file: $ENV_FILE"
 echo ""
+
+# Function to check if running as root
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo "⚠ This script should be run as root to install missing packages"
+        echo "  Run with: sudo $0"
+        echo ""
+        echo "Continuing with path detection only..."
+        return 1
+    fi
+    return 0
+}
+
+# Function to install missing packages
+install_missing_tools() {
+    echo "Step 1: Installing missing tools..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    local packages_to_install=()
+    
+    # Check each required tool
+    if ! command -v unrar &> /dev/null; then
+        echo "⚠ unrar not found - will install"
+        packages_to_install+=("unrar")
+    else
+        echo "✓ unrar already installed"
+    fi
+    
+    if ! command -v unzip &> /dev/null; then
+        echo "⚠ unzip not found - will install"
+        packages_to_install+=("unzip")
+    else
+        echo "✓ unzip already installed"
+    fi
+    
+    if ! command -v 7z &> /dev/null && ! command -v 7za &> /dev/null; then
+        echo "⚠ 7zip not found - will install"
+        packages_to_install+=("p7zip-full")
+    else
+        echo "✓ 7zip already installed"
+    fi
+    
+    if ! command -v ffmpeg &> /dev/null; then
+        echo "⚠ ffmpeg not found - will install"
+        packages_to_install+=("ffmpeg")
+    else
+        echo "✓ ffmpeg already installed"
+    fi
+    
+    if ! command -v lame &> /dev/null; then
+        echo "⚠ lame not found - will install"
+        packages_to_install+=("lame")
+    else
+        echo "✓ lame already installed"
+    fi
+    
+    if ! command -v mediainfo &> /dev/null; then
+        echo "⚠ mediainfo not found - will install"
+        packages_to_install+=("mediainfo")
+    else
+        echo "✓ mediainfo already installed"
+    fi
+    
+    # Check for file/magic (usually installed by default)
+    if [ ! -f "/usr/share/file/magic.mgc" ] && [ ! -f "/usr/share/misc/magic.mgc" ]; then
+        echo "⚠ magic file not found - will install"
+        packages_to_install+=("file")
+    else
+        echo "✓ magic file already present"
+    fi
+    
+    # Install missing packages
+    if [ ${#packages_to_install[@]} -gt 0 ]; then
+        echo ""
+        echo "📦 Installing ${#packages_to_install[@]} package(s): ${packages_to_install[*]}"
+        echo ""
+        
+        apt-get update -qq
+        apt-get install -y "${packages_to_install[@]}"
+        
+        echo ""
+        echo "✅ All tools installed successfully!"
+    else
+        echo ""
+        echo "✅ All required tools are already installed!"
+    fi
+    
+    echo ""
+}
+
+# Check if running as root and install if possible
+if check_root; then
+    install_missing_tools
+else
+    echo "Step 1: Skipping installation (not running as root)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+fi
 
 # Function to find and set path in .env
 update_env_path() {
@@ -96,7 +194,7 @@ set_storage_paths() {
     fi
 }
 
-echo "Step 1: Detecting tool paths..."
+echo "Step 2: Detecting tool paths..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Update each tool path
@@ -120,17 +218,17 @@ update_env_path "MEDIAINFO_PATH" "mediainfo"
 update_env_path "TIMEOUT_PATH" "timeout"
 
 echo ""
-echo "Step 2: Finding magic file..."
+echo "Step 3: Finding magic file..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 find_magic_file
 
 echo ""
-echo "Step 3: Setting storage paths..."
+echo "Step 4: Setting storage paths..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 set_storage_paths
 
 echo ""
-echo "Step 4: Summary of updates..."
+echo "Step 5: Summary of updates..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 grep -E "^(UNRAR_PATH|UNZIP_PATH|S7ZIP_PATH|PATH_TO_NZBS|FFMPEG_PATH|LAME_PATH|MEDIAINFO_PATH|TIMEOUT_PATH|MAGIC_FILE_PATH|COVERS_PATH)=" "$ENV_FILE" || echo "No paths found in .env"
 
