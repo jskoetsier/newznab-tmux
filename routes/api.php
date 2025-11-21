@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\ApiController;
 use App\Http\Controllers\Api\ApiInformController;
 use App\Http\Controllers\Api\ApiV2Controller;
 
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->middleware('throttle:60,1')->group(function () {
     Route::match(['post', 'get'], 'api', [ApiController::class, 'api']);
 });
 

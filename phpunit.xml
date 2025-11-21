@@ -19,7 +19,12 @@
     <env name="QUEUE_DRIVER" value="sync"/>
     <env name="MAIL_DRIVER" value="array"/>
   </php>
-  <logging/>
+  <coverage>
+    <report>
+      <html outputDirectory="tests/coverage"/>
+      <text outputFile="php://stdout" showUncoveredFiles="false"/>
+    </report>
+  </coverage>
   <source>
     <include>
       <directory suffix=".php">Blacklight</directory>

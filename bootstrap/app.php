@@ -23,15 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'failed',
-            'admin/*',
             'btcpay/webhook',
-            'logout',
-            'register',
-            'contact-us',
-            'forgottenpassword',
-            'login',
-            'cart',
-            'cart/*',
         ]);
 
         $middleware->append([
