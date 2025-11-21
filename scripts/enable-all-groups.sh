@@ -41,12 +41,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 mysql nntmux <<EOF
 -- Enable all groups
-UPDATE usenet_groups 
+UPDATE usenet_groups
 SET active = 1;
 
 -- Get active groups count
 SELECT CONCAT('✓ Enabled ', COUNT(*), ' groups') as result
-FROM usenet_groups 
+FROM usenet_groups
 WHERE active = 1;
 EOF
 
@@ -62,32 +62,29 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 BACKFILL_ARTICLES=20000
 
 mysql nntmux <<EOF
--- Enable backfill for all active groups
-UPDATE usenet_groups 
+-- Enable backfill for all active groups with proper bounds checking
+UPDATE usenet_groups
 SET backfill = 1,
-    backfill_target = last_record - $BACKFILL_ARTICLES
-WHERE active = 1
-AND last_record > $BACKFILL_ARTICLES;
-
--- For groups with fewer than target articles, backfill to first available
-UPDATE usenet_groups 
-SET backfill = 1,
-    backfill_target = first_record
-WHERE active = 1
-AND last_record <= $BACKFILL_ARTICLES;
+    backfill_target = GREATEST(0,
+                              CASE
+                                WHEN last_record > $BACKFILL_ARTICLES
+                                THEN last_record - $BACKFILL_ARTICLES
+                                ELSE first_record
+                              END)
+WHERE active = 1;
 
 -- Show summary
-SELECT 
+SELECT
     CONCAT('✓ Configured backfill for ', COUNT(*), ' groups') as result
-FROM usenet_groups 
+FROM usenet_groups
 WHERE backfill = 1;
 
-SELECT 
-    CONCAT('  Average backfill target: ', 
-           FORMAT(AVG(last_record - backfill_target), 0), 
+SELECT
+    CONCAT('  Average backfill target: ',
+           FORMAT(AVG(last_record - backfill_target), 0),
            ' articles (~1 day)') as info
-FROM usenet_groups 
-WHERE backfill = 1 
+FROM usenet_groups
+WHERE backfill = 1
 AND backfill_target > 0;
 EOF
 
@@ -118,22 +115,22 @@ echo "Step 6: Verifying final configuration..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 mysql nntmux -e "
-SELECT 
+SELECT
     'Groups Enabled:' as metric,
     COUNT(*) as value
-FROM usenet_groups 
+FROM usenet_groups
 WHERE active = 1
 UNION ALL
-SELECT 
+SELECT
     'Backfill Enabled:',
     COUNT(*)
-FROM usenet_groups 
+FROM usenet_groups
 WHERE backfill = 1
 UNION ALL
-SELECT 
+SELECT
     'Total Articles to Backfill:',
     FORMAT(SUM(last_record - backfill_target), 0)
-FROM usenet_groups 
+FROM usenet_groups
 WHERE backfill = 1 AND backfill_target > 0;
 "
 
