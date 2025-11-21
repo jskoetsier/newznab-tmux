@@ -149,7 +149,7 @@ class Predb extends Model
 
                     // Perform batch update using a single query
                     \DB::update("
-                        UPDATE releases 
+                        UPDATE releases
                         SET predb_id = CASE id {$caseString} END
                         WHERE id IN ({$idsString})
                     ");

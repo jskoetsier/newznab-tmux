@@ -13,7 +13,7 @@ class ImportPredbDump extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'predb:import 
+    protected $signature = 'predb:import
                             {file : Path to the predb dump file (CSV or TSV format)}
                             {--type=csv : File type (csv or tsv)}
                             {--skip-header : Skip the first line if it contains column headers}

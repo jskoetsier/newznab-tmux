@@ -48,4 +48,26 @@ use Illuminate\Database\Eloquent\Model;
 class Collection extends Model
 {
     public $timestamps = false;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'subject',
+        'fromname',
+        'date',
+        'xref',
+        'totalfiles',
+        'groups_id',
+        'collectionhash',
+        'collection_regexes_id',
+        'dateadded',
+        'added',
+        'filecheck',
+        'filesize',
+        'releases_id',
+        'noise',
+    ];
 }

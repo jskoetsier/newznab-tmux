@@ -1,16 +1,17 @@
 #!/bin/bash
 
 # NNTmux Deployment Script
-# Automates deployment to remote server
+# Automates deployment to remote server with Podman
 
 set -e  # Exit on error
 
 # Configuration
 REMOTE_USER="root"
 REMOTE_HOST="192.168.1.153"
-REMOTE_PATH="/var/www/nntmux"
-REMOTE_BACKUP_PATH="/var/www/nntmux-backups"
+REMOTE_PATH="/opt/nntmux"
+REMOTE_BACKUP_PATH="/opt/nntmux-backups"
 PROJECT_NAME="nntmux"
+GIT_REPO_URL="$(git config --get remote.origin.url)"
 
 # Colors for output
 RED='\033[0;31m'

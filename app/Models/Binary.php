@@ -39,4 +39,20 @@ class Binary extends Model
      * @var bool
      */
     public $timestamps = false;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'collections_id',
+        'filenumber',
+        'totalparts',
+        'currentparts',
+        'partcheck',
+        'partsize',
+        'binaryhash',
+    ];
 }

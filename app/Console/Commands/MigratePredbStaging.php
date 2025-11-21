@@ -11,7 +11,7 @@ class MigratePredbStaging extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'predb:migrate-staging 
+    protected $signature = 'predb:migrate-staging
                             {--truncate-staging : Truncate predb_imports after migration}
                             {--update-indexes : Update search indexes after migration}';
 
