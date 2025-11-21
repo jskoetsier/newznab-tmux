@@ -62,20 +62,23 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 BACKFILL_ARTICLES=20000
 
 mysql nntmux <<EOF
--- Enable backfill for all active groups with proper bounds checking
--- Cast to SIGNED to handle potential negative results, then use GREATEST for safety
+-- Enable backfill ONLY for groups that have valid article data (last_record > 0)
 UPDATE usenet_groups 
 SET backfill = 1,
-    backfill_target = CAST(
-                        CASE 
-                          WHEN CAST(last_record AS SIGNED) > $BACKFILL_ARTICLES 
-                            THEN CAST(last_record AS SIGNED) - $BACKFILL_ARTICLES
-                          WHEN CAST(first_record AS SIGNED) > 0 
-                            THEN CAST(first_record AS SIGNED)
-                          ELSE 1
-                        END
-                      AS UNSIGNED)
-WHERE active = 1;
+    backfill_target = CASE 
+                        WHEN last_record > $BACKFILL_ARTICLES 
+                          THEN last_record - $BACKFILL_ARTICLES
+                        ELSE first_record
+                      END
+WHERE active = 1
+AND last_record > 0
+AND first_record > 0;
+
+-- For groups without data yet, leave backfill disabled (they need to collect first)
+UPDATE usenet_groups
+SET backfill = 0
+WHERE active = 1
+AND (last_record = 0 OR first_record = 0);
 
 -- Show summary
 SELECT
