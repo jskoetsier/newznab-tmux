@@ -73,7 +73,7 @@ NC='\033[0m'
 # Function to get stats
 get_stats() {
     mysql -N -B nntmux -e "
-    SELECT 
+    SELECT
         COUNT(*),
         SUM(CASE WHEN predb_id > 0 THEN 1 ELSE 0 END),
         SUM(CASE WHEN predb_id = 0 THEN 1 ELSE 0 END),
@@ -90,31 +90,31 @@ START_TIME=$(date +%s)
 
 while true; do
     clear
-    
+
     # Header
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║     NNTmux PreDB Match Rate Monitor - v2.2.2 Fuzzy Matching Active      ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    
+
     # Get current stats
     CURRENT_STATS=$(get_stats)
     read -r total matched unmatched match_rate nfo_pending files_pending <<< "$CURRENT_STATS"
-    
+
     # Calculate runtime
     CURRENT_TIME=$(date +%s)
     ELAPSED=$((CURRENT_TIME - START_TIME))
     HOURS=$((ELAPSED / 3600))
     MINUTES=$(((ELAPSED % 3600) / 60))
     SECONDS=$((ELAPSED % 60))
-    
+
     # Format numbers
     total_fmt=$(printf "%'d" "$total")
     matched_fmt=$(printf "%'d" "$matched")
     unmatched_fmt=$(printf "%'d" "$unmatched")
     nfo_fmt=$(printf "%'d" "$nfo_pending")
     files_fmt=$(printf "%'d" "$files_pending")
-    
+
     echo -e "${BLUE}$(date '+%Y-%m-%d %H:%M:%S')${NC}  |  Runtime: ${YELLOW}$(printf '%02d:%02d:%02d' $HOURS $MINUTES $SECONDS)${NC}"
     echo ""
     echo -e "${CYAN}Current Statistics:${NC}"
@@ -126,51 +126,51 @@ while true; do
     echo -e "  NFO pending:           $nfo_fmt"
     echo -e "  Files pending:         $files_fmt"
     echo ""
-    
+
     # Calculate improvement since start
     if [ -n "$INITIAL_STATS" ]; then
         read -r init_total init_matched init_unmatched init_rate init_nfo init_files <<< "$INITIAL_STATS"
-        
+
         new_matches=$((matched - init_matched))
         rate_change=$(echo "scale=2; $match_rate - $init_rate" | bc)
         processed_nfo=$((init_nfo - nfo_pending))
         processed_files=$((init_files - files_pending))
-        
+
         if [ "$new_matches" -gt 0 ] || [ "$processed_nfo" -gt 0 ]; then
             echo -e "${CYAN}Progress Since Start:${NC}"
-            
+
             if [ "$new_matches" -gt 0 ]; then
                 echo -e "  ${GREEN}✓ New PreDB Matches:${NC}   $(printf "%'d" $new_matches) ${GREEN}(+${rate_change}%)${NC}"
-                
+
                 if [ "$ELAPSED" -gt 0 ]; then
                     rate_per_min=$(echo "scale=2; ($new_matches * 60) / $ELAPSED" | bc)
                     echo -e "  ${GREEN}✓ Match Rate:${NC}          ${rate_per_min}/min"
                 fi
             fi
-            
+
             if [ "$processed_nfo" -gt 0 ]; then
                 echo -e "  ${BLUE}• NFO Processed:${NC}       $(printf "%'d" $processed_nfo)"
             fi
-            
+
             if [ "$processed_files" -gt 0 ]; then
                 echo -e "  ${BLUE}• Files Processed:${NC}     $(printf "%'d" $processed_files)"
             fi
-            
+
             echo ""
         fi
     fi
-    
+
     # Check active processes
     if ps aux | grep -E 'releases:fix-names|update:postprocess' | grep -v grep > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Postprocessing ACTIVE${NC}"
     else
         echo -e "${YELLOW}⚠ Postprocessing IDLE${NC}"
     fi
-    
+
     echo ""
     echo -e "${CYAN}══════════════════════════════════════════════════════════════════════════${NC}"
     echo -e "  Refreshing in ${INTERVAL}s... (Press Ctrl+C in this pane to stop monitor)"
-    
+
     sleep "$INTERVAL"
 done
 EOFSCRIPT

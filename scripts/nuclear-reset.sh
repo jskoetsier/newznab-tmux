@@ -153,7 +153,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Reset groups to current article numbers (no backfill, start from now)
 mysql nntmux <<EOF
-UPDATE usenet_groups 
+UPDATE usenet_groups
 SET first_record = last_record,
     first_record_postdate = NOW(),
     last_updated = NOW();

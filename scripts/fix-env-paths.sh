@@ -38,9 +38,9 @@ check_root() {
 install_missing_tools() {
     echo "Step 1: Installing missing tools..."
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     local packages_to_install=()
-    
+
     # Check each required tool
     if ! command -v unrar &> /dev/null; then
         echo "⚠ unrar not found - will install"
@@ -48,42 +48,42 @@ install_missing_tools() {
     else
         echo "✓ unrar already installed"
     fi
-    
+
     if ! command -v unzip &> /dev/null; then
         echo "⚠ unzip not found - will install"
         packages_to_install+=("unzip")
     else
         echo "✓ unzip already installed"
     fi
-    
+
     if ! command -v 7z &> /dev/null && ! command -v 7za &> /dev/null; then
         echo "⚠ 7zip not found - will install"
         packages_to_install+=("p7zip-full")
     else
         echo "✓ 7zip already installed"
     fi
-    
+
     if ! command -v ffmpeg &> /dev/null; then
         echo "⚠ ffmpeg not found - will install"
         packages_to_install+=("ffmpeg")
     else
         echo "✓ ffmpeg already installed"
     fi
-    
+
     if ! command -v lame &> /dev/null; then
         echo "⚠ lame not found - will install"
         packages_to_install+=("lame")
     else
         echo "✓ lame already installed"
     fi
-    
+
     if ! command -v mediainfo &> /dev/null; then
         echo "⚠ mediainfo not found - will install"
         packages_to_install+=("mediainfo")
     else
         echo "✓ mediainfo already installed"
     fi
-    
+
     # Check for file/magic (usually installed by default)
     if [ ! -f "/usr/share/file/magic.mgc" ] && [ ! -f "/usr/share/misc/magic.mgc" ]; then
         echo "⚠ magic file not found - will install"
@@ -91,23 +91,23 @@ install_missing_tools() {
     else
         echo "✓ magic file already present"
     fi
-    
+
     # Install missing packages
     if [ ${#packages_to_install[@]} -gt 0 ]; then
         echo ""
         echo "📦 Installing ${#packages_to_install[@]} package(s): ${packages_to_install[*]}"
         echo ""
-        
+
         apt-get update -qq
         apt-get install -y "${packages_to_install[@]}"
-        
+
         echo ""
         echo "✅ All tools installed successfully!"
     else
         echo ""
         echo "✅ All required tools are already installed!"
     fi
-    
+
     echo ""
 }
 
@@ -125,12 +125,12 @@ update_env_path() {
     local var_name=$1
     local command_name=$2
     local path=""
-    
+
     # Try to find the command
     if command -v "$command_name" &> /dev/null; then
         path=$(which "$command_name")
         echo "✓ Found $command_name: $path"
-        
+
         # Update in .env file
         if grep -q "^${var_name}=" "$ENV_FILE"; then
             sed -i.bak "s|^${var_name}=.*|${var_name}=${path}|" "$ENV_FILE"
@@ -150,11 +150,11 @@ find_magic_file() {
         "/usr/share/file/magic"
         "/usr/share/misc/magic"
     )
-    
+
     for path in "${magic_paths[@]}"; do
         if [ -f "$path" ]; then
             echo "✓ Found magic file: $path"
-            
+
             if grep -q "^MAGIC_FILE_PATH=" "$ENV_FILE"; then
                 sed -i.bak "s|^MAGIC_FILE_PATH=.*|MAGIC_FILE_PATH=${path}|" "$ENV_FILE"
             else
@@ -163,7 +163,7 @@ find_magic_file() {
             return 0
         fi
     done
-    
+
     echo "⚠ Magic file not found - leaving empty"
     return 1
 }
@@ -172,21 +172,21 @@ find_magic_file() {
 set_storage_paths() {
     local nzb_path="$SCRIPT_DIR/../resources/nzb"
     local covers_path="$SCRIPT_DIR/../public/covers"
-    
+
     # Create directories if they don't exist
     mkdir -p "$nzb_path"
     mkdir -p "$covers_path"
-    
+
     echo "✓ NZB path: $nzb_path"
     echo "✓ Covers path: $covers_path"
-    
+
     # Update in .env
     if grep -q "^PATH_TO_NZBS=" "$ENV_FILE"; then
         sed -i.bak "s|^PATH_TO_NZBS=.*|PATH_TO_NZBS=${nzb_path}|" "$ENV_FILE"
     else
         echo "PATH_TO_NZBS=${nzb_path}" >> "$ENV_FILE"
     fi
-    
+
     if grep -q "^COVERS_PATH=" "$ENV_FILE"; then
         sed -i.bak "s|^COVERS_PATH=.*|COVERS_PATH=${covers_path}|" "$ENV_FILE"
     else
