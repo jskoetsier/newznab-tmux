@@ -788,9 +788,37 @@ class NameFixer
             $release->releases_id = $release->id;
         }
         if ($this->relid !== $release->releases_id) {
-            $newName = (new ReleaseCleaning)->fixerCleaner($name);
-            // Normalize and sanity-check candidate for non-trusted sources
-            $newName = $this->normalizeCandidateTitle($newName);
+            // v2.2.2: IMPROVED NORMALIZATION STRATEGY
+            // First, clean the name but preserve important elements
+            $cleanedName = (new ReleaseCleaning)->fixerCleaner($name);
+
+            // Try PreDB matching with original cleaned name FIRST (before aggressive normalization)
+            $predbMatch = false;
+            if ($preId === 0 || $preId === null) {
+                // Attempt PreDB match with the original name (preserves extensions and critical info)
+                $predbMatch = Predb::matchPre($cleanedName);
+                if ($predbMatch !== false) {
+                    // Found a PreDB match with the original name - use it!
+                    $newName = $predbMatch['title'];
+                    $preId = $predbMatch['predb_id'];
+                    $type = 'PreDB Match (Original), ';
+                } else {
+                    // No match found - now try with normalized name
+                    $normalizedName = $this->normalizeCandidateTitle($cleanedName);
+                    $predbMatch = Predb::matchPre($normalizedName);
+                    if ($predbMatch !== false) {
+                        $newName = $predbMatch['title'];
+                        $preId = $predbMatch['predb_id'];
+                        $type = 'PreDB Match (Normalized), ';
+                    } else {
+                        // No PreDB match - use normalized name for other matching
+                        $newName = $normalizedName;
+                    }
+                }
+            } else {
+                // PreDB ID already set - normalize the name
+                $newName = $this->normalizeCandidateTitle($cleanedName);
+            }
 
             // Determine if the source is trusted enough to bypass plausibility checks
             $trustedSource = (

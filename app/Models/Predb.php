@@ -188,6 +188,7 @@ class Predb extends Model
             return false;
         }
 
+        // v2.2.2: Phase 1 - Exact title match
         $titleCheck = self::query()->where('title', $cleanerName)->first(['id']);
 
         if ($titleCheck !== null) {
@@ -197,13 +198,104 @@ class Predb extends Model
             ];
         }
 
-        // Check if clean name matches a PreDB filename.
+        // v2.2.2: Phase 2 - Exact filename match
         $fileCheck = self::query()->where('filename', $cleanerName)->first(['id', 'title']);
 
         if ($fileCheck !== null) {
             return [
                 'title' => $fileCheck['title'],
                 'predb_id' => $fileCheck['id'],
+            ];
+        }
+
+        // v2.2.2: Phase 3 - Normalized matching (dots to spaces)
+        $normalizedName = str_replace('.', ' ', $cleanerName);
+        if ($normalizedName !== $cleanerName) {
+            $normalizedCheck = self::query()->where('title', $normalizedName)->first(['id']);
+
+            if ($normalizedCheck !== null) {
+                return [
+                    'title' => $normalizedName,
+                    'predb_id' => $normalizedCheck['id'],
+                ];
+            }
+        }
+
+        // v2.2.2: Phase 4 - Fuzzy matching (similarity-based)
+        if (config('nntmux.predb_fuzzy_matching_enabled', true)) {
+            $fuzzyMatch = self::fuzzyMatchPre($cleanerName);
+            if ($fuzzyMatch !== false) {
+                return $fuzzyMatch;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * v2.2.2: Perform fuzzy matching using Levenshtein distance and similarity scores.
+     *
+     * @param string $searchName The release name to search for
+     * @return array|false Array with title/id from PreDB if found, false if not found.
+     */
+    private static function fuzzyMatchPre(string $searchName)
+    {
+        if (empty($searchName)) {
+            return false;
+        }
+
+        // Configuration: Minimum similarity threshold (0-100)
+        $minSimilarity = config('nntmux.predb_fuzzy_min_similarity', 85);
+
+        // Configuration: Maximum Levenshtein distance
+        $maxLevenshtein = config('nntmux.predb_fuzzy_max_distance', 5);
+
+        // Extract key components from search name for better matching
+        // Remove common noise: dots, underscores, excessive spaces
+        $cleanSearch = preg_replace('/[._]+/', ' ', $searchName);
+        $cleanSearch = preg_replace('/\s+/', ' ', $cleanSearch);
+        $cleanSearch = trim($cleanSearch);
+
+        // Get potential candidates - search for titles with similar length
+        $searchLen = strlen($searchName);
+        $lenRange = max(5, (int)($searchLen * 0.2)); // 20% length variance
+
+        // Query PreDB for candidates within reasonable length range
+        $candidates = self::query()
+            ->whereRaw('CHAR_LENGTH(title) BETWEEN ? AND ?', [
+                $searchLen - $lenRange,
+                $searchLen + $lenRange
+            ])
+            ->limit(100)
+            ->get(['id', 'title']);
+
+        $bestMatch = null;
+        $bestScore = 0;
+
+        foreach ($candidates as $candidate) {
+            $candidateTitle = $candidate->title;
+
+            // Calculate similarity percentage
+            similar_text($searchName, $candidateTitle, $similarityPercent);
+
+            if ($similarityPercent >= $minSimilarity) {
+                // Calculate Levenshtein distance for additional validation
+                $distance = levenshtein(
+                    substr($searchName, 0, 255),
+                    substr($candidateTitle, 0, 255)
+                );
+
+                if ($distance <= $maxLevenshtein && $similarityPercent > $bestScore) {
+                    $bestMatch = $candidate;
+                    $bestScore = $similarityPercent;
+                }
+            }
+        }
+
+        if ($bestMatch !== null) {
+            return [
+                'title' => $bestMatch->title,
+                'predb_id' => $bestMatch->id,
             ];
         }
 

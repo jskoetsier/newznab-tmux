@@ -28,4 +28,9 @@ return [
     // v2.2.1: Configurable NFO size limit (increased from 65KB to 512KB default)
     // Scene releases often have elaborate ASCII art that exceeds the old 65KB limit
     'nfo_max_size' => env('NFO_MAX_SIZE', 524288), // 512KB default (524288 bytes)
+
+    // v2.2.2: PreDB fuzzy matching configuration
+    'predb_fuzzy_matching_enabled' => env('PREDB_FUZZY_MATCHING_ENABLED', true),
+    'predb_fuzzy_min_similarity' => env('PREDB_FUZZY_MIN_SIMILARITY', 85), // 85% similarity threshold
+    'predb_fuzzy_max_distance' => env('PREDB_FUZZY_MAX_DISTANCE', 5), // Max Levenshtein distance
 ];
