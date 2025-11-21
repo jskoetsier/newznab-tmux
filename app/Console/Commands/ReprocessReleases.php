@@ -21,7 +21,7 @@ class ReprocessReleases extends Command
                             {--limit=1000 : Maximum number of releases to process}
                             {--batch=100 : Number of releases to process per batch}
                             {--dry-run : Show what would be reprocessed without making changes}
-                            {--verbose : Show detailed progress information}';
+                            {--show-details : Show detailed progress information}';
 
     /**
      * The console command description.
@@ -49,7 +49,7 @@ class ReprocessReleases extends Command
         $limit = (int) $this->option('limit');
         $batchSize = (int) $this->option('batch');
         $dryRun = $this->option('dry-run');
-        $verbose = $this->option('verbose');
+        $showDetails = $this->option('show-details');
 
         // Display configuration
         $this->info('=== Reprocess Releases Configuration ===');
@@ -161,7 +161,7 @@ class ReprocessReleases extends Command
                         if ($release->predb_id > 0 && $originalPredbId === 0) {
                             $this->matched++;
 
-                            if ($verbose) {
+                            if ($showDetails) {
                                 $this->newLine();
                                 $this->line("  ✓ ID {$release->id}: Matched to PreDB #{$release->predb_id}");
                                 $this->line("    Old: {$originalName}");
@@ -180,7 +180,7 @@ class ReprocessReleases extends Command
                 } catch (\Exception $e) {
                     $this->errors++;
 
-                    if ($verbose) {
+                    if ($showDetails) {
                         $this->newLine();
                         $this->error("  ✗ ID {$release->id}: Error - " . $e->getMessage());
                     }
