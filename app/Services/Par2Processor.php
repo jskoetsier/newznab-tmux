@@ -49,16 +49,19 @@ class Par2Processor
 
         $query = Release::query()
             ->where(['isrenamed' => 0, 'id' => $relID])
-            ->select(['id', 'groups_id', 'categories_id', 'name', 'searchname', 'postdate', 'id as releases_id'])
+            ->select(['id', 'groups_id', 'categories_id', 'name', 'searchname', 'postdate', 'id as releases_id', 'predb_id'])
             ->first();
 
         if ($query === null) {
             return false;
         }
 
-        // Only get a new name if the category is OTHER.
+        // v2.2.1: CHANGED - Only skip PAR2 processing if release already has PreDB match
+        // Previous logic: Only processed "Other" category, which blocked improvements for already-categorized releases
+        // New logic: Process all categories UNLESS release has a PreDB match (which is the highest quality source)
         $foundName = true;
-        if (\in_array((int) $query['categories_id'], Category::OTHERS_GROUP, false)) {
+        if (empty($query['predb_id']) || $query['predb_id'] <= 0) {
+            // No PreDB match yet, try to find a better name from PAR2
             $foundName = false;
         }
 

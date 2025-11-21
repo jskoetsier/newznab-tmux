@@ -155,7 +155,10 @@ class Nfo
         $size = \strlen($possibleNFO);
 
         // Basic size and signature checks
-        if ($size >= 65535 || $size < 12 || preg_match($this->_nonNfoHeaderRegex, $possibleNFO)) {
+        // CHANGED v2.2.1: Increased NFO size limit from 65KB to 512KB to support scene releases with ASCII art
+        // Configurable via NFO_MAX_SIZE environment variable (default: 524288 bytes = 512KB)
+        $maxNfoSize = config('nntmux.nfo_max_size', 524288);
+        if ($size >= $maxNfoSize || $size < 12 || preg_match($this->_nonNfoHeaderRegex, $possibleNFO)) {
             return false;
         }
 

@@ -25,4 +25,7 @@ return [
     'tmp_unzip_path' => env('TEMP_UNZIP_PATH', storage_path('tmp/unzip/')),
     'nzb_import_folder' => env('NZB_IMPORT_FOLDER'),
     'nzb_upload_folder' => env('NZB_UPLOAD_FOLDER'),
+    // v2.2.1: Configurable NFO size limit (increased from 65KB to 512KB default)
+    // Scene releases often have elaborate ASCII art that exceeds the old 65KB limit
+    'nfo_max_size' => env('NFO_MAX_SIZE', 524288), // 512KB default (524288 bytes)
 ];

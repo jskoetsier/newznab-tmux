@@ -2218,6 +2218,7 @@ class NameFixer
 
     /**
      * Heuristic filter to avoid poor renames (e.g., short or generic names) from untrusted sources.
+     * v2.2.1: RELAXED filter criteria to allow more valid short-named releases
      */
     private function isPlausibleReleaseTitle(string $title): bool
     {
@@ -2225,14 +2226,29 @@ class NameFixer
         if ($t === '') {
             return false;
         }
-        // Minimum length and token count
-        if (strlen($t) < 12) {
+
+        // v2.2.1: CHANGED - Reduced minimum length from 12 to 8 characters
+        // Allows valid short-named releases like "Go.S01E01.720p-GRP"
+        if (strlen($t) < 8) {
             return false;
         }
+
+        // Count "words" (3+ alphanumeric chars)
         $wordCount = preg_match_all('/[A-Za-z0-9]{3,}/', $t);
-        if ($wordCount < 2) {
+
+        // Detect release indicators
+        $hasYear = (bool) preg_match('/\b(19|20)\d{2}\b/', $t);
+        $hasQuality = (bool) preg_match('/\b(480p|720p|1080p|2160p|4k|webrip|web[ .-]?dl|bluray|bdrip|dvdrip|hdtv|hdrip|xvid|x264|x265|hevc|h\.?264|ts|cam|r5|proper|repack)\b/i', $t);
+        $hasTV = (bool) preg_match('/\bS\d{1,2}[Eex]\d{1,3}\b/i', $t);
+        $hasXXX = (bool) preg_match('/\bXXX\b/i', $t);
+        $hasGroupSuffix = (bool) preg_match('/[-.][A-Za-z0-9]{2,}$/', $t);
+
+        // v2.2.1: CHANGED - Allow single word if it has release indicators
+        // Allows valid releases like "1917.2019.1080p.BluRay-GROUP" or "Pi.1998.DVD-GROUP"
+        if ($wordCount < 2 && !($hasYear || $hasQuality || $hasTV || $hasGroupSuffix)) {
             return false;
         }
+
         // Reject if it still ends with a segment marker
         if (preg_match('/(?:^|[.\-_ ])(?:part|vol|r)\d+(?:\+\d+)?$/i', $t)) {
             return false;
@@ -2241,12 +2257,6 @@ class NameFixer
         if (preg_match('/^(setup|install|installer|patch|update|crack|keygen)\d*[\s._-]/i', $t)) {
             return false;
         }
-        // Acceptance criteria
-        $hasGroupSuffix = (bool) preg_match('/[-.][A-Za-z0-9]{2,}$/', $t);
-        $hasYear = (bool) preg_match('/\b(19|20)\d{2}\b/', $t);
-        $hasQuality = (bool) preg_match('/\b(480p|720p|1080p|2160p|4k|webrip|web[ .-]?dl|bluray|bdrip|dvdrip|hdtv|hdrip|xvid|x264|x265|hevc|h\.?264|ts|cam|r5|proper|repack)\b/i', $t);
-        $hasTV = (bool) preg_match('/\bS\d{1,2}[Eex]\d{1,3}\b/i', $t);
-        $hasXXX = (bool) preg_match('/\bXXX\b/i', $t);
 
         // Accept if:
         // - Has a group suffix (e.g., -ETHEL or .NBQ)
