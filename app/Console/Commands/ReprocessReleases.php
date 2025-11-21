@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Release;
-use Blacklight\NameFixer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -15,49 +14,33 @@ class ReprocessReleases extends Command
      * @var string
      */
     protected $signature = 'releases:reprocess
-                            {--reset-flags : Reset proc_nfo and proc_files flags before reprocessing}
                             {--unmatched-only : Only reprocess releases with predb_id = 0}
                             {--category= : Specific category ID to reprocess}
-                            {--limit=1000 : Maximum number of releases to process}
-                            {--batch=100 : Number of releases to process per batch}
-                            {--dry-run : Show what would be reprocessed without making changes}
-                            {--show-details : Show detailed progress information}';
+                            {--limit=1000 : Maximum number of releases to reset}
+                            {--dry-run : Show what would be reset without making changes}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Reprocess releases with new fuzzy PreDB matching (v2.2.2)';
-
-    protected NameFixer $nameFixer;
-    protected int $processed = 0;
-    protected int $matched = 0;
-    protected int $unchanged = 0;
-    protected int $errors = 0;
+    protected $description = 'Reset processing flags to allow reprocessing with new fuzzy PreDB matching (v2.2.2)';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $this->nameFixer = new NameFixer(['Settings' => null]);
-
-        $resetFlags = $this->option('reset-flags');
         $unmatchedOnly = $this->option('unmatched-only');
         $categoryId = $this->option('category');
         $limit = (int) $this->option('limit');
-        $batchSize = (int) $this->option('batch');
         $dryRun = $this->option('dry-run');
-        $showDetails = $this->option('show-details');
 
         // Display configuration
-        $this->info('=== Reprocess Releases Configuration ===');
-        $this->info('Reset Flags: ' . ($resetFlags ? 'YES' : 'NO'));
+        $this->info('=== Reset Release Processing Flags ===');
         $this->info('Unmatched Only: ' . ($unmatchedOnly ? 'YES' : 'NO'));
         $this->info('Category Filter: ' . ($categoryId ?: 'ALL'));
         $this->info('Limit: ' . number_format($limit));
-        $this->info('Batch Size: ' . number_format($batchSize));
         $this->info('Mode: ' . ($dryRun ? 'DRY RUN' : 'LIVE'));
         $this->newLine();
 
@@ -67,9 +50,7 @@ class ReprocessReleases extends Command
         }
 
         // Build query
-        $query = Release::query()
-            ->select(['id', 'name', 'searchname', 'categories_id', 'predb_id', 'proc_nfo', 'proc_files'])
-            ->orderBy('id', 'DESC');
+        $query = Release::query();
 
         // Apply filters
         if ($unmatchedOnly) {
@@ -82,152 +63,78 @@ class ReprocessReleases extends Command
             $this->info('Filter: Category ID = ' . $categoryId);
         }
 
+        // Get count before applying limit
+        $totalCount = $query->count();
+        $this->info('Total matching releases: ' . number_format($totalCount));
+        
+        // Apply limit
         $query->limit($limit);
-
-        // Get total count
-        $totalReleases = $query->count();
-        $this->info('Found ' . number_format($totalReleases) . ' releases to reprocess');
+        $affectedCount = min($limit, $totalCount);
+        
+        $this->info('Releases to reset: ' . number_format($affectedCount));
         $this->newLine();
 
-        if ($totalReleases === 0) {
+        if ($affectedCount === 0) {
             $this->warn('No releases found matching criteria. Exiting.');
             return self::SUCCESS;
         }
 
-        // Confirm before proceeding
-        if (!$dryRun && !$this->confirm('Do you want to proceed with reprocessing?', true)) {
-            $this->warn('Reprocessing cancelled.');
+        if ($dryRun) {
+            $this->info('Would reset proc_nfo and proc_files flags for ' . number_format($affectedCount) . ' releases');
+            $this->newLine();
+            $this->warn('DRY RUN COMPLETE - No changes were made');
+            $this->info('Run without --dry-run to actually reset processing flags');
+            $this->newLine();
+            $this->info('After resetting, run postprocessing to reprocess these releases:');
+            $this->comment('  php artisan update:postprocess nfo');
             return self::SUCCESS;
         }
 
-        // Step 1: Reset flags if requested
-        if ($resetFlags && !$dryRun) {
-            $this->info('Step 1: Resetting processing flags...');
-
-            $resetQuery = Release::query();
-            if ($unmatchedOnly) {
-                $resetQuery->where('predb_id', 0);
-            }
-            if ($categoryId) {
-                $resetQuery->where('categories_id', $categoryId);
-            }
-            $resetQuery->limit($limit);
-
-            $resetCount = $resetQuery->update([
-                'proc_nfo' => 0,
-                'proc_files' => 0,
-            ]);
-
-            $this->info("Reset proc_nfo and proc_files flags for {$resetCount} releases");
-            $this->newLine();
-        } elseif ($resetFlags && $dryRun) {
-            $this->info('Step 1: Would reset proc_nfo and proc_files flags (DRY RUN)');
-            $this->newLine();
+        // Confirm before proceeding
+        if (!$this->confirm('Do you want to proceed with resetting processing flags?', true)) {
+            $this->warn('Operation cancelled.');
+            return self::SUCCESS;
         }
 
-        // Step 2: Process releases in batches
-        $this->info('Step 2: Reprocessing releases with fuzzy PreDB matching...');
-        $this->newLine();
-
-        $progressBar = $this->output->createProgressBar($totalReleases);
-        $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s% %memory:6s% | Matched: %matched% | Unchanged: %unchanged% | Errors: %errors%');
-        $progressBar->setMessage('0', 'matched');
-        $progressBar->setMessage('0', 'unchanged');
-        $progressBar->setMessage('0', 'errors');
-        $progressBar->start();
-
-        // Process in chunks
-        $releases = $query->get();
-
-        foreach ($releases->chunk($batchSize) as $chunk) {
-            foreach ($chunk as $release) {
-                try {
-                    $originalPredbId = $release->predb_id;
-                    $originalName = $release->searchname;
-
-                    if (!$dryRun) {
-                        // Run name fixing with new fuzzy matching
-                        $result = $this->nameFixer->fixNamesWithNfo(
-                            $release->name,
-                            $release->id,
-                            0, // Use default echo level
-                            $release->searchname
-                        );
-
-                        // Reload release to check if it was updated
-                        $release->refresh();
-
-                        // Check if PreDB match was found
-                        if ($release->predb_id > 0 && $originalPredbId === 0) {
-                            $this->matched++;
-
-                            if ($showDetails) {
-                                $this->newLine();
-                                $this->line("  ✓ ID {$release->id}: Matched to PreDB #{$release->predb_id}");
-                                $this->line("    Old: {$originalName}");
-                                $this->line("    New: {$release->searchname}");
-                            }
-                        } elseif ($release->predb_id === $originalPredbId) {
-                            $this->unchanged++;
-                        }
-                    } else {
-                        // Dry run - just count what would be processed
-                        $this->unchanged++;
-                    }
-
-                    $this->processed++;
-
-                } catch (\Exception $e) {
-                    $this->errors++;
-
-                    if ($showDetails) {
-                        $this->newLine();
-                        $this->error("  ✗ ID {$release->id}: Error - " . $e->getMessage());
-                    }
-                }
-
-                // Update progress bar
-                $progressBar->setMessage((string) $this->matched, 'matched');
-                $progressBar->setMessage((string) $this->unchanged, 'unchanged');
-                $progressBar->setMessage((string) $this->errors, 'errors');
-                $progressBar->advance();
-            }
+        // Reset the flags
+        $this->info('Resetting processing flags...');
+        $progressBar = $this->output->createProgressBar($affectedCount);
+        
+        $resetQuery = Release::query();
+        if ($unmatchedOnly) {
+            $resetQuery->where('predb_id', 0);
         }
-
+        if ($categoryId) {
+            $resetQuery->where('categories_id', $categoryId);
+        }
+        $resetQuery->limit($limit);
+        
+        $updated = $resetQuery->update([
+            'proc_nfo' => 0,
+            'proc_files' => 0,
+        ]);
+        
         $progressBar->finish();
         $this->newLine(2);
 
         // Display results
-        $this->info('=== Reprocessing Results ===');
-        $this->info('Total Processed: ' . number_format($this->processed));
-        $this->info('New PreDB Matches: ' . number_format($this->matched));
-        $this->info('Unchanged: ' . number_format($this->unchanged));
-        $this->info('Errors: ' . number_format($this->errors));
+        $this->info('=== Reset Complete ===');
+        $this->info('Releases updated: ' . number_format($updated));
         $this->newLine();
-
-        if ($this->matched > 0) {
-            $matchRate = ($this->matched / $this->processed) * 100;
-            $this->info(sprintf('Match Rate: %.2f%%', $matchRate));
+        
+        if ($updated > 0) {
+            $this->info('✓ Processing flags reset successfully!');
             $this->newLine();
-
-            if (!$dryRun) {
-                $this->info('✓ Fuzzy PreDB matching successfully improved ' . number_format($this->matched) . ' releases!');
-            }
-        } elseif (!$dryRun) {
-            $this->warn('No new PreDB matches found. Possible reasons:');
-            $this->warn('  • Releases may already be matched');
-            $this->warn('  • PreDB database may not contain matching entries');
-            $this->warn('  • Fuzzy matching thresholds may need adjustment');
-            $this->warn('');
-            $this->info('Try adjusting config/nntmux.php:');
-            $this->info('  • predb_fuzzy_min_similarity (default: 85)');
-            $this->info('  • predb_fuzzy_max_distance (default: 5)');
-        }
-
-        if ($dryRun) {
+            $this->info('Next steps:');
+            $this->comment('  1. Run NFO postprocessing:');
+            $this->comment('     php artisan update:postprocess nfo');
             $this->newLine();
-            $this->warn('DRY RUN COMPLETE - No changes were made');
-            $this->info('Run without --dry-run to actually reprocess releases');
+            $this->comment('  2. Or run specific postprocessing types:');
+            $this->comment('     php artisan update:postprocess movies');
+            $this->comment('     php artisan update:postprocess tv');
+            $this->comment('     php artisan update:postprocess additional');
+            $this->newLine();
+            $this->info('The new fuzzy PreDB matching (v2.2.2) will be applied automatically!');
         }
 
         return self::SUCCESS;
