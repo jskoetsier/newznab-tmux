@@ -123,7 +123,7 @@ class DetailsController extends BasePageController
                 $AniDBAPIArray = (new AniDB)->getAnimeInfo($data['anidbid']);
             }
 
-            $pre = Predb::getForRelease($data['predb_id']);
+            $pre = $data['predb_id'] > 0 ? Predb::getForRelease($data['predb_id'])->first() : null;
 
             $releasefiles = ReleaseFile::getReleaseFiles($data['id']);
 
