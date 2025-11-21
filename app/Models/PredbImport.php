@@ -45,5 +45,44 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PredbImport extends Model
 {
-    //
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'title',
+        'nfo',
+        'size',
+        'category',
+        'predate',
+        'source',
+        'requestid',
+        'groups_id',
+        'nuked',
+        'nukereason',
+        'files',
+        'filename',
+        'searched',
+        'groupname',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'requestid' => 'integer',
+        'groups_id' => 'integer',
+        'nuked' => 'boolean',
+        'searched' => 'boolean',
+    ];
 }

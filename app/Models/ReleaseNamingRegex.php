@@ -29,5 +29,26 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ReleaseNamingRegex extends Model
 {
-    //
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'group_regex',
+        'regex',
+        'status',
+        'description',
+        'ordinal',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'status' => 'boolean',
+        'ordinal' => 'integer',
+    ];
 }

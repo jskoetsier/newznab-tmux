@@ -31,6 +31,30 @@ use Illuminate\Database\Eloquent\Model;
  */
 class RoleExpirationEmail extends Model
 {
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'users_id',
+        'day',
+        'week',
+        'month',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'users_id' => 'integer',
+        'day' => 'integer',
+        'week' => 'integer',
+        'month' => 'integer',
+    ];
+
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'users_id');

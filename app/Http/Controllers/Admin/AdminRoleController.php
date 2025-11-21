@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BasePageController;
+use App\Http\Requests\Admin\StoreRoleRequest;
+use App\Http\Requests\Admin\UpdateRoleRequest;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 
@@ -38,6 +40,8 @@ class AdminRoleController extends BasePageController
 
         switch ($request->input('action') ?? 'view') {
             case 'submit':
+                // Note: For proper validation, this should be StoreRoleRequest
+                // but keeping Request for backward compatibility with the form
                 $meta_title = $title = 'Add User Role';
                 $role = Role::create([
                     'name' => $request->input('name'),
