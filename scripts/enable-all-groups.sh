@@ -63,14 +63,16 @@ BACKFILL_ARTICLES=20000
 
 mysql nntmux <<EOF
 -- Enable backfill for all active groups with proper bounds checking
+-- Set backfill_target safely, ensuring it's never negative or out of range
 UPDATE usenet_groups
 SET backfill = 1,
-    backfill_target = GREATEST(0,
-                              CASE
-                                WHEN last_record > $BACKFILL_ARTICLES
-                                THEN last_record - $BACKFILL_ARTICLES
-                                ELSE first_record
-                              END)
+    backfill_target = CASE
+                        WHEN last_record > $BACKFILL_ARTICLES
+                          THEN last_record - $BACKFILL_ARTICLES
+                        WHEN first_record > 0
+                          THEN first_record
+                        ELSE 1
+                      END
 WHERE active = 1;
 
 -- Show summary
